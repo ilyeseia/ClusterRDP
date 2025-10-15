@@ -4,31 +4,44 @@ on:
   workflow_dispatch:
 
 jobs:
-  setup_tailscale:
+  setup_cluster:
     runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      TS_AUTHKEY: ${{ secrets.TAILSCALE_AUTH_KEY }}
+      RDP_USER: "RDP"
+      RDP_PASS: "j9M5N4C.ur=]3gL"
+      CLUSTER_SIZE: 3
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
+      - name: Checkout repo
+        uses: actions/checkout@v4
 
+      # -----------------------------
+      # تثبيت Tailscale وربط الشبكة
+      # -----------------------------
       - name: Install Tailscale
         run: |
           curl -fsSL https://tailscale.com/install.sh | sh
-          sudo tailscale up --authkey=${{ secrets.TAILSCALE_AUTHKEY }} --hostname=cluster-rdp
+          sudo tailscale up --authkey=$TS_AUTHKEY --hostname=cluster-rdp-master --accept-dns=false
+          tailscale status
 
-  create_vm:
-    needs: setup_tailscale
-    runs-on: ubuntu-latest
-    steps:
-      - name: Create VM
+      # -----------------------------
+      # إنشاء الخوادم RDP الثلاثة
+      # -----------------------------
+      - name: Create VMs sequentially
         run: |
-          # استبدل هذا بالسكريبت الخاص بإنشاء الخادم الافتراضي
-          echo "إنشاء الخادم الافتراضي"
+          echo "⏱ Starting VM creation sequence..."
+          SEQ_DELAYS=(0 7200 14400)  # delay in seconds: VM1 immediate, VM2 after 2h, VM3 after 4h
+          for i in $(seq 1 $CLUSTER_SIZE); do
+            echo "Creating VM$i after ${SEQ_DELAYS[$((i-1))]} seconds..."
+            sleep ${SEQ_DELAYS[$((i-1))]}
+            ./scripts/create_rdp_vm.sh $i
+            echo "VM$i created."
+          done
 
-  monitor_cluster:
-    needs: create_vm
-    runs-on: ubuntu-latest
-    steps:
+      # -----------------------------
+      # مراقبة حالة الخوادم
+      # -----------------------------
       - name: Monitor Cluster
         run: |
-          # استبدل هذا بالسكريبت الخاص بمراقبة حالة الخوادم
-          echo "مراقبة حالة الخوادم"
+          ./scripts/monitor_cluster.sh
