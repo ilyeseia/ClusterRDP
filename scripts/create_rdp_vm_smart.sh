@@ -1,43 +1,29 @@
 #!/usr/bin/env bash
-# ==================================================
-# سكربت إنشاء VM ذكي حسب الرقم المعطى
-# Usage: ./create_rdp_vm_smart.sh <VM_NUMBER>
-# ==================================================
-
-VM_NUMBER=$1
-VM_NAME="RDP-VM${VM_NUMBER}"
-JSON_FILE=".cluster_status_smart.json"
-
-if [ -z "$VM_NUMBER" ]; then
-  echo "❌ Usage: $0 <VM_NUMBER>"
-  exit 1
-fi
+set -e
+VM_ID=$1
+VM_NAME="RDP-VM${VM_ID}"
 
 echo "🚀 Creating $VM_NAME..."
 
-# مثال مبسط: إنشاء container كـ VM افتراضي (تعديل حسب حاجتك)
-docker run -d --name $VM_NAME \
-  --hostname $VM_NAME \
-  -e TZ=Etc/UTC \
-  mcr.microsoft.com/windows/servercore:ltsc2022 sleep infinity
+# Delete old container if exists
+docker rm -f $VM_NAME 2>/dev/null || true
 
-# التأكد من أن Tailscale مثبت ومفعل داخل VM
-echo "🔗 Starting Tailscale inside $VM_NAME..."
-docker exec $VM_NAME powershell -Command "
-  if (-not (Test-Path 'C:\Program Files\Tailscale\tailscale.exe')) {
-    Invoke-WebRequest -Uri 'https://pkgs.tailscale.com/stable/tailscale-setup-latest-amd64.msi' -OutFile 'C:\Temp\tailscale.msi';
-    Start-Process msiexec.exe -ArgumentList '/i C:\Temp\tailscale.msi /quiet /norestart' -Wait
-  }
-  & 'C:\Program Files\Tailscale\tailscale.exe' up --authkey=$env:TAILSCALE_AUTH_KEY --hostname=$env:VM_NAME --accept-dns=false
-"
+# Create new Ubuntu container
+docker run -d --name $VM_NAME --hostname $VM_NAME \
+  --privileged --network host \
+  ubuntu:22.04 sleep infinity
 
-# الحصول على IP Tailscale
-TS_IP=$(docker exec $VM_NAME powershell -Command "& 'C:\Program Files\Tailscale\tailscale.exe' ip -4" | grep '^100\.' | head -n1)
+# Install XRDP + Desktop + Tailscale inside container
+docker exec -i $VM_NAME bash <<'EOF'
+apt update -qq
+apt install -y xrdp xfce4 xfce4-goodies dbus-x11 tailscale curl sudo
+systemctl enable xrdp
+service xrdp start
+tailscale up --authkey=${TAILSCALE_AUTH_KEY} --hostname=$HOSTNAME --accept-dns=false || true
+EOF
 
-# تحديث JSON cluster status
-if [ ! -f $JSON_FILE ]; then
-  echo "{}" > $JSON_FILE
-fi
-jq --arg name "$VM_NAME" --arg ip "$TS_IP" '.[$name]=$ip' $JSON_FILE > tmp.json && mv tmp.json $JSON_FILE
-
+TS_IP=$(docker exec $VM_NAME tailscale ip -4 | grep '^100\.' || true)
 echo "✅ $VM_NAME created with Tailscale IP: $TS_IP"
+
+# Save info
+jq -n --arg name "$VM_NAME" --arg ip "$TS_IP" '{name:$name, ip:$ip}' > "${VM_NAME}_info.json"
