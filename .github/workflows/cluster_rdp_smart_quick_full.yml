@@ -20,7 +20,7 @@ jobs:
       - name: Create VMs sequentially (Quick Test)
         shell: pwsh
         run: |
-          $SEQ_DELAYS = @(0, 5, 10)   # 0s, 5s, 10s لتجربة سريعة
+          $SEQ_DELAYS = @(0, 300, 600)   # 0s, 5s, 10s لتجربة سريعة
           $CLUSTER_SIZE = 3
           for ($i=1; $i -le $CLUSTER_SIZE; $i++) {
             Write-Host "⏱ Creating VM$i after $($SEQ_DELAYS[$i-1]) seconds..."
