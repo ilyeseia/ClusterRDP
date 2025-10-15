@@ -12,7 +12,7 @@ while ($true) {
 
         if (-not $containerExists) {
             Write-Host "⚠ $VM_NAME is down! Recreating..."
-            ./scripts/create_rdp_vm_smart.sh $i
+            ./scripts/create_rdp_vm_smart_win.sh $i
         } else {
             $TS_IP = docker exec $VM_NAME powershell -Command "& 'C:\Program Files\Tailscale\tailscale.exe' ip -4" | Select-String '^100\.' | Select-Object -First 1
             if (-not (Test-Path $JSON_FILE)) { '{}' | Out-File $JSON_FILE }
