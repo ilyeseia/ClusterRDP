@@ -1,0 +1,34 @@
+name: Cluster RDP Smart Test - Quick
+
+on:
+  workflow_dispatch:
+
+jobs:
+  smart-cluster-quick:
+    runs-on: windows-latest
+    timeout-minutes: 60  # مدة قصيرة للاختبار
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Make scripts executable
+        shell: pwsh
+        run: |
+          Get-ChildItem ./scripts/*.sh | ForEach-Object { $_.IsReadOnly = $false }
+
+      - name: Create VMs sequentially (Quick Test)
+        shell: pwsh
+        run: |
+          $SEQ_DELAYS = @(0, 5, 10)   # 0s, 5s, 10s لتجربة سريعة
+          $CLUSTER_SIZE = 3
+          for ($i=1; $i -le $CLUSTER_SIZE; $i++) {
+            Write-Host "⏱ Creating VM$i after $($SEQ_DELAYS[$i-1]) seconds..."
+            Start-Sleep -Seconds $SEQ_DELAYS[$i-1]
+            ./scripts/create_rdp_vm_smart.sh $i
+            Write-Host "✅ VM$i created."
+          }
+
+      - name: Start Cluster Monitor (Quick Test)
+        shell: pwsh
+        run: ./scripts/monitor_cluster_smart.sh
