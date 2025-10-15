@@ -1,0 +1,47 @@
+name: ClusterRDP Test Workflow
+
+on:
+  workflow_dispatch:
+
+jobs:
+  setup_cluster:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60  # كافي للتجربة القصيرة
+    env:
+      TS_AUTHKEY: ${{ secrets.TAILSCALE_AUTH_KEY }}
+      RDP_USER: "RDP"
+      RDP_PASS: "j9M5N4C.ur=]3gL"
+      CLUSTER_SIZE: 3
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      # -----------------------------
+      # تثبيت Tailscale وربط الشبكة
+      # -----------------------------
+      - name: Install Tailscale
+        run: |
+          curl -fsSL https://tailscale.com/install.sh | sh
+          sudo tailscale up --authkey=$TS_AUTHKEY --hostname=cluster-rdp-master --accept-dns=false
+          tailscale status
+
+      # -----------------------------
+      # إنشاء الخوادم RDP الثلاثة مع تأخير قصير للاختبار
+      # -----------------------------
+      - name: Create VMs sequentially (Test)
+        run: |
+          echo "⏱ Starting VM creation sequence (Test)..."
+          SEQ_DELAYS=(0 60 120)  # VM1 فورًا، VM2 بعد 1 دقيقة، VM3 بعد دقيقتين
+          for i in $(seq 1 $CLUSTER_SIZE); do
+            echo "Creating VM$i after ${SEQ_DELAYS[$((i-1))]} seconds..."
+            sleep ${SEQ_DELAYS[$((i-1))]}
+            ./scripts/create_rdp_vm.sh $i
+            echo "VM$i created."
+          done
+
+      # -----------------------------
+      # مراقبة حالة الخوادم
+      # -----------------------------
+      - name: Monitor Cluster (Test)
+        run: |
+          ./scripts/monitor_cluster.sh
