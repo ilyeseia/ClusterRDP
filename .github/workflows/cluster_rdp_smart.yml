@@ -1,48 +1,30 @@
-name: ClusterRDP Smart Workflow
+name: Cluster RDP Smart Test
 
 on:
   workflow_dispatch:
 
 jobs:
-  setup_cluster:
+  smart-cluster:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
-    env:
-      TS_AUTHKEY: ${{ secrets.TAILSCALE_AUTH_KEY }}
-      RDP_USER: "RDP"
-      RDP_PASS: "j9M5N4C.ur=]3gL"
-      CLUSTER_SIZE: 3
-      JSON_FILE: ".cluster_status.json"
+    timeout-minutes: 360
+
     steps:
-      - name: Checkout repo
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      # -----------------------------
-      # تثبيت Tailscale
-      # -----------------------------
-      - name: Install Tailscale
-        run: |
-          curl -fsSL https://tailscale.com/install.sh | sh
-          sudo tailscale up --authkey=$TS_AUTHKEY --hostname=cluster-master --accept-dns=false
-          tailscale status
+      - name: Make scripts executable
+        run: chmod +x ./scripts/*.sh
 
-      # -----------------------------
-      # إنشاء الخوادم بالتسلسل
-      # -----------------------------
-      - name: Create VMs sequentially (Test)
+      - name: Create VMs sequentially
         run: |
-          echo "⏱ Starting VM creation sequence..."
-          SEQ_DELAYS=(0 60 120)  # تجربة قصيرة: 1 دقيقة، 2 دقيقة
+          SEQ_DELAYS=(0 900 1800)  # 0s, 15min, 30min
+          CLUSTER_SIZE=3
           for i in $(seq 1 $CLUSTER_SIZE); do
-            echo "Creating VM$i after ${SEQ_DELAYS[$((i-1))]} seconds..."
+            echo "⏱ Creating VM$i after ${SEQ_DELAYS[$((i-1))]} seconds..."
             sleep ${SEQ_DELAYS[$((i-1))]}
-            ./scripts/create_rdp_vm.sh $i
-            echo "VM$i created."
+            ./scripts/create_rdp_vm_smart.sh $i
+            echo "✅ VM$i created."
           done
 
-      # -----------------------------
-      # Monitor and maintain cluster
-      # -----------------------------
-      - name: Monitor Cluster (Smart)
-        run: |
-          ./scripts/monitor_cluster_smart.sh
+      - name: Start Cluster Monitor
+        run: ./scripts/monitor_cluster_smart.sh
