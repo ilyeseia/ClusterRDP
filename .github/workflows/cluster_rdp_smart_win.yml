@@ -31,4 +31,4 @@ jobs:
 
       - name: Start Cluster Monitor
         shell: pwsh
-        run: ./scripts/monitor_cluster_smart.sh
+        run: ./scripts/monitor_cluster_smart_win.sh
