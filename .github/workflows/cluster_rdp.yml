@@ -1,0 +1,34 @@
+name: ClusterRDP Workflow
+
+on:
+  workflow_dispatch:
+
+jobs:
+  setup_tailscale:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Install Tailscale
+        run: |
+          curl -fsSL https://tailscale.com/install.sh | sh
+          sudo tailscale up --authkey=${{ secrets.TAILSCALE_AUTHKEY }} --hostname=cluster-rdp
+
+  create_vm:
+    needs: setup_tailscale
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create VM
+        run: |
+          # استبدل هذا بالسكريبت الخاص بإنشاء الخادم الافتراضي
+          echo "إنشاء الخادم الافتراضي"
+
+  monitor_cluster:
+    needs: create_vm
+    runs-on: ubuntu-latest
+    steps:
+      - name: Monitor Cluster
+        run: |
+          # استبدل هذا بالسكريبت الخاص بمراقبة حالة الخوادم
+          echo "مراقبة حالة الخوادم"
