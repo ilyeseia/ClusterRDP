@@ -11,6 +11,11 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        
+      - name: Setup Docker Environment
+        run: |
+          sudo apt update -qq
+          sudo apt install -y jq tailscale    
 
       - name: Make scripts executable
         run: chmod +x ./scripts/*.sh
